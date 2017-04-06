@@ -34,6 +34,13 @@ image_pre, labels_pre, bboxes_pre, bbox_img = ssd_vgg_preprocessing.preprocess_f
     img_input, None, None, net_shape, data_format, resize=ssd_vgg_preprocessing.Resize.WARP_RESIZE)
 image_4d = tf.expand_dims(image_pre, 0)
 
+# Define the SSD model
+reuse = True if 'ssd_net' in locals() else None
+ssd_net = ssd_vgg_512.SSDNet()
+ssd_anchors = ssd_net.anchors(net_shape)
+with slim.arg_scope(ssd_net.arg_scope(data_format=data_format)):
+    predictions, localisations, _, _ = ssd_net.net(image_4d, is_training=False, reuse=reuse)
+    
 # Main image processing routine.
 def process_image(img, sess, select_threshold=0.5, nms_threshold=.45, net_shape=(512, 512)):
     # Run SSD network.
@@ -51,18 +58,10 @@ def process_image(img, sess, select_threshold=0.5, nms_threshold=.45, net_shape=
     return rclasses, rscores, rbboxes
 
 def main(_):
-    # Define the SSD model
-    reuse = True if 'ssd_net' in locals() else None
-    ssd_net = ssd_vgg_512.SSDNet()
-    with slim.arg_scope(ssd_net.arg_scope(data_format=data_format)):
-        predictions, localisations, _, _ = ssd_net.net(image_4d, is_training=False, reuse=reuse)
-    
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver()
-        saver.restore(sess, ckpt_path)
-        
-        ssd_anchors = ssd_net.anchors(net_shape)
+        saver.restore(sess, ckpt_path) 
         
         img_names = sorted(os.listdir(img_path))
         #img = mpimg.imread(path + image_names[-5])
