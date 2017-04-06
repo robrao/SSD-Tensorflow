@@ -1,5 +1,4 @@
 import os
-#import cv2 # shouldn't use, may be only for viusalization
 import sys
 import math
 import random
@@ -9,20 +8,14 @@ import tensorflow as tf
 
 from nets import ssd_vgg_512, ssd_common, np_methods
 from preprocessing import ssd_vgg_preprocessing
-#from notebooks import visualization
 
 from PIL import Image
-
-# remove after visualization test
-#import matplotlib.pyplot as plt
-#import matploglib.image as mpimg
 
 slim = tf.contrib.slim
 
 gpu_options = tf.GPUOptions(allow_growth=True)
 config = tf.ConfigProto(log_device_placement=False, gpu_options=gpu_options)
 
-ckpt_path = '/data/ssd_models/vgg_512/VGG_VOC0712_SSD_512x512_ft_iter_120000.ckpt'
 net_shape = (512, 512)
 data_format = 'NHWC'
 img_path = 'demo/'
@@ -58,6 +51,7 @@ def process_image(img, sess, select_threshold=0.5, nms_threshold=.45, net_shape=
     return rclasses, rscores, rbboxes
 
 def main(_):
+    ckpt_path = '/data/ssd_models/vgg_512/VGG_VOC0712_SSD_512x512_ft_iter_120000.ckpt'
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver()
