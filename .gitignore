@@ -1,3 +1,6 @@
+# Files
+*.pyc
+
 # Directories.
 datasets/__pycache__/
 deployment/__pycache__/
