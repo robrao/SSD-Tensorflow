@@ -56,12 +56,11 @@ def process_image(img, sess, classes=osprey_classes, ssd_id=classifier_id, selec
     for idx, rc in enumerate(rclasses):
         c = classes[rc-1]
         pc = rscores[idx]
-        bbx = rbboxes[idx]
         
-        ymin = int(bbx[0] * height)
-        xmin = int(bbx[1] * width)
-        ymax = int(bbx[2] * height)
-        xmax = int(bbx[3] * width)
+        ymin = int(rbboxes[idx, 0] * height)
+        xmin = int(rbboxes[idx, 1] * width)
+        ymax = int(rbboxes[idx, 2] * height)
+        xmax = int(rbboxes[idx, 3] * width)
         bbx_w = xmax - xmin
         bbx_h = ymax - ymin
 
