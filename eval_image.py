@@ -38,6 +38,7 @@ with slim.arg_scope(ssd_net.arg_scope(data_format=data_format)):
     
 # Main image processing routine.
 def process_image(img, sess, classes=osprey_classes, ssd_id=classifier_id, select_threshold=0.5, nms_threshold=.45, net_shape=(512, 512)):
+    width, height = img.size
     # Run SSD network.
     rimg, rpredictions, rlocalisations, rbbox_img = sess.run([image_4d, predictions, localisations, bbox_img], feed_dict={img_input: img})
                 
@@ -57,7 +58,16 @@ def process_image(img, sess, classes=osprey_classes, ssd_id=classifier_id, selec
         pc = rscores[idx]
         bbx = rbboxes[idx]
         
-        results.append({'classifier_id':ssd_id, 'class_name':c, 'class_probability':pc, 'bbx':list(bbx)})
+        ymin = int(bbx[0] * height)
+        xmin = int(bbx[1] * width)
+        ymax = int(bbx[2] * height)
+        xmax = int(bbx[3] * width)
+        bbx_w = xmax - xmin
+        bbx_h = ymax - ymin
+
+        bbx_xywh = [xmin, ymin, bbx_w, bbx_h]
+        
+        results.append({'classifier_id':ssd_id, 'class_name':c, 'class_probability':pc, 'bbx':bbx_xywh})
 
     return results
 
