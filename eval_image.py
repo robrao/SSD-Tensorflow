@@ -23,24 +23,29 @@ img_path = 'demo/'
 classes = np.asarray(['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'])
 osprey_classes = np.asarray(['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'vehicle', 'vehicle', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'pedestrian', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'])
 
-img_input = tf.placeholder(tf.uint8, shape=(None, None, 3))
-
-image_pre, labels_pre, bboxes_pre, bbox_img = ssd_vgg_preprocessing.preprocess_for_eval(
-    img_input, None, None, net_shape, data_format, resize=ssd_vgg_preprocessing.Resize.WARP_RESIZE)
-image_4d = tf.expand_dims(image_pre, 0)
-
-# Define the SSD model
-reuse = True if 'ssd_net' in locals() else None
-ssd_net = ssd_vgg_512.SSDNet()
-ssd_anchors = ssd_net.anchors(net_shape)
-with slim.arg_scope(ssd_net.arg_scope(data_format=data_format)):
-    predictions, localisations, _, _ = ssd_net.net(image_4d, is_training=False, reuse=reuse)
+# Build SSD graph
+def build_ssd_graph():
+    g = tf.Graph()
+    with g.as_default():
+        img_input = tf.placeholder(tf.uint8, shape=(None, None, 3))
+        image_pre, labels_pre, bboxes_pre, bbox_img = ssd_vgg_preprocessing.preprocess_for_eval(
+            img_input, None, None, net_shape, data_format, resize=ssd_vgg_preprocessing.Resize.WARP_RESIZE)
+        image_4d = tf.expand_dims(image_pre, 0)
+        
+        # Define the SSD model
+        reuse = True if 'ssd_net' in locals() else None
+        ssd_net = ssd_vgg_512.SSDNet()
+        ssd_anchors = ssd_net.anchors(net_shape)
+        with slim.arg_scope(ssd_net.arg_scope(data_format=data_format)):
+            predictions, localizations, _, _ = ssd_net.net(image_4d, is_training=False, reuse=reuse)
+        
+        return g, ssd_anchors, img_input, image_4d, bbox_img, predictions, localizations
     
 # Main image processing routine.
-def process_image(img, sess, classes=osprey_classes, ssd_id=classifier_id, select_threshold=0.5, nms_threshold=.45, net_shape=(512, 512)):
+def process_image(img, sess, ssd_anchors, img_input, image_4d, bbox_img, predictions, localizations, classes=osprey_classes, ssd_id=classifier_id, select_threshold=0.5, nms_threshold=.45, net_shape=(512, 512)):
     width, height = img.size
     # Run SSD network.
-    rimg, rpredictions, rlocalisations, rbbox_img = sess.run([image_4d, predictions, localisations, bbox_img], feed_dict={img_input: img})
+    rimg, rpredictions, rlocalisations, rbbox_img = sess.run([image_4d, predictions, localizations, bbox_img], feed_dict={img_input: img})
                 
     # Get classes and bboxes from the net outputs.
     rclasses, rscores, rbboxes = np_methods.ssd_bboxes_select(rpredictions, rlocalisations, ssd_anchors, select_threshold=select_threshold, img_shape=net_shape, num_classes=21, decode=True)
@@ -72,7 +77,8 @@ def process_image(img, sess, classes=osprey_classes, ssd_id=classifier_id, selec
 
 def main(_):
     ckpt_path = '/data/ssd_models/vgg_512/VGG_VOC0712_SSD_512x512_ft_iter_120000.ckpt'
-    with tf.Session(config=config) as sess:
+    g, anchors, img_input, img4d, bbx_img, preds, locs = build_ssd_graph()
+    with tf.Session(config=config, graph=g) as sess:
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver()
         saver.restore(sess, ckpt_path) 
@@ -80,7 +86,7 @@ def main(_):
         img_names = sorted(os.listdir(img_path))
         #img = mpimg.imread(path + image_names[-5])
         img = Image.open(img_path + img_names[-5])
-        results = process_image(img, sess)
+        results = process_image(img, sess, anchors, img_input, img4d, bbx_img, preds, locs)
         
         print(results)
 
